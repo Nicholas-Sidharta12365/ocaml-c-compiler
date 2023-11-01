@@ -1,2 +1,2 @@
 (test
- (name ocaml_c_compiler))
+ (name magic))

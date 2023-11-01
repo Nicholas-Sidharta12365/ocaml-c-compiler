@@ -21,8 +21,15 @@
         # nix run .#dev 
         dev = pkgs.writeShellScriptBin "dev" ''
           cd "$(git rev-parse --show-toplevel)"
-          dune exec ocaml_c_compiler
+          dune exec magic
         '';
+
+        # nix run .watch
+        watch = pkgs.writeShellScriptBin "watch" ''
+          cd "$(git rev-parse --show-toplevel)"
+          dune exec magic --watch
+        '';
+
       };
 
       devShells.default = pkgs.mkShell {

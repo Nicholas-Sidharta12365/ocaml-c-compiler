@@ -1,4 +1,4 @@
 (executable
- (public_name ocaml_c_compiler)
+ (public_name magic)
  (name main)
- (libraries ocaml_c_compiler))
+ (libraries magic))

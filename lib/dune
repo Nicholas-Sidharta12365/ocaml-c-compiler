@@ -1,5 +1,5 @@
 (library
- (name ocaml_c_compiler)
+ (name magic)
  (libraries base fmt ppx_inline_test ppx_expect ppx_sexp_conv sexplib)
  (flags (:standard -w -11 -open Sexplib.Std))
  (preprocess
