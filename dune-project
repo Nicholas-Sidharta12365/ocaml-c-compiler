@@ -1,4 +1,4 @@
-(lang dune 3.10)
+(lang dune 3.6)
 
 (name ocaml_c_compiler)
 
