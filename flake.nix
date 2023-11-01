@@ -26,8 +26,8 @@
       };
 
       devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [ ocaml ocamlformat ] ++
-          (with pkgs.ocamlPackages; [ dune_3 odoc ]);
+        buildInputs = with pkgs; [ ocaml ocamlformat opam ] ++
+          (with pkgs.ocamlPackages; [ dune_3 odoc findlib core base fmt ppx_inline_test ppx_expect ppx_sexp_conv ppx_deriving sexplib sexplib0 ]);
 
         shellHook = ''
           ${pkgs.ocaml}/bin/ocaml --version
