@@ -8,13 +8,26 @@ type t =
   | Assign
   | Plus
   | Minus
-  | Bang
-  | Asterisk
-  | Slash
-  | LessThan
-  | GreaterThan
+  | Multiply
+  | Divide
+  | Modulo
+  | Increment
+  | Decrement
   | Equal
   | NotEqual
+  | GreaterThan
+  | LessThan
+  | Geq  (* Greater than or equal to *)
+  | Leq  (* Less than or equal to *)
+  | LogicalAnd
+  | LogicalOr
+  | LogicalNot
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | BitwiseNot
+  | ShiftLeft
+  | ShiftRight
   (* Delimiters *)
   | Comma
   | Semicolon
@@ -25,26 +38,43 @@ type t =
   | RightBrace
   | LeftBracket
   | RightBracket
-  (* Keyword *)
-  | Macro
-  | Function
-  | Let
-  | True
-  | False
+  (* Keywords *)
   | If
   | Else
+  | While
+  | For
+  | Do
+  | Switch
+  | Case
+  | Default
   | Return
+  | Int
+  | Void
+  | Printf
+  | Sizeof
+  (* Pointer and Address *)
+  | Ampersand   (* & *)
+  | Asterisk    (* * *)
+  (* Type qualifier *)
+  | Const
 [@@deriving show, eq, sexp]
 
 let lookup_ident str =
   match str with
-  | "fn" -> Function
-  | "let" -> Let
-  | "true" -> True
-  | "false" -> False
   | "if" -> If
   | "else" -> Else
+  | "while" -> While
+  | "for" -> For
+  | "do" -> Do
+  | "switch" -> Switch
+  | "case" -> Case
+  | "default" -> Default
   | "return" -> Return
-  | "macro" -> Macro
+  | "int" -> Int
+  | "void" -> Void
+  | "printf" -> Printf
+  | "sizeof" -> Sizeof
+  | "const" -> Const
   | _ -> Ident str
 ;;
+
