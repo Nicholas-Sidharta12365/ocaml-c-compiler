@@ -6,8 +6,10 @@ type t =
   | String of string
   (* Operators *)
   | Assign
+  | Bang
   | Plus
   | Minus
+  | Slash
   | Multiply
   | Divide
   | Modulo
