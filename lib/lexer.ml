@@ -106,3 +106,20 @@ and if_peeked lexer ch ~default ~matched =
 and is_identifier ch = Char.(ch = '_' || is_alpha ch)
 and is_number ch = Char.is_digit ch
 
+let input_to_tokens input =
+  let lexer = init input in
+  let tokens = Vect.create 0 Token.Illegal in
+  let rec loop lexer =
+    match next_token lexer with
+    | lexer, Some token ->
+      Vect.push tokens token;
+      loop lexer
+    | _, None -> ()
+  in
+  let _ = loop lexer in
+  Vect.to_list tokens
+;;
+
+let print_tokens tokens = 
+  List.iter ~f:(fun t -> Fmt.pr "%s\n " @@ Token.show t) tokens
+;;
