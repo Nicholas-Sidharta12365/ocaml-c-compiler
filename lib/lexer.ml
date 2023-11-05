@@ -21,23 +21,23 @@ let rec next_token lexer =
   | Some ch ->
     let lexer, token =
       match ch with
-      | ';' -> advance lexer, Semicolon
-      | '(' -> advance lexer, LeftParen
-      | ')' -> advance lexer, RightParen
-      | ',' -> advance lexer, Comma
-      | '+' -> advance lexer, Plus
+      | '=' -> if_peeked lexer '=' ~default:Assign ~matched:Equal
+      | '!' -> if_peeked lexer '=' ~default:Bang ~matched:NotEqual
+      | '+' -> if_peeked lexer '+' ~default:Plus ~matched:Increment
       | '-' -> advance lexer, Minus
-      | '/' -> advance lexer, Slash
-      | '*' -> advance lexer, Asterisk
+      | '*' -> advance lexer, Multiply
+      | '/' -> advance lexer, Divide
       | '<' -> advance lexer, LessThan
       | '>' -> advance lexer, GreaterThan
+      | ',' -> advance lexer, Comma
+      | ';' -> advance lexer, Semicolon
+      | ':' -> advance lexer, Colon
+      | '(' -> advance lexer, LeftParen
+      | ')' -> advance lexer, RightParen
       | '{' -> advance lexer, LeftBrace
       | '}' -> advance lexer, RightBrace
-      | ':' -> advance lexer, Colon
       | '[' -> advance lexer, LeftBracket
       | ']' -> advance lexer, RightBracket
-      | '!' -> if_peeked lexer '=' ~default:Bang ~matched:NotEqual
-      | '=' -> if_peeked lexer '=' ~default:Assign ~matched:Equal
       | '"' -> read_string lexer
       | ch when is_identifier ch -> read_identifier lexer
       | ch when is_number ch -> read_number lexer
@@ -105,3 +105,4 @@ and if_peeked lexer ch ~default ~matched =
 
 and is_identifier ch = Char.(ch = '_' || is_alpha ch)
 and is_number ch = Char.is_digit ch
+
