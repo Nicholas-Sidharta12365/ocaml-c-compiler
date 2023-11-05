@@ -377,7 +377,7 @@ and expr_parse_fn parser =
   let* parser, body = parse_block parser in
   Ok (parser, Ast.FunctionLiteral { parameters; body })
 
-and expr_parse_macro parser =
+(* and expr_parse_macro parser =
   let* parser = expect_lparen parser in
   let* parser, parameters =
     match parser.peek with
@@ -390,7 +390,7 @@ and expr_parse_macro parser =
   in
   let* parser = expect_lbrace parser in
   let* parser, body = parse_block parser in
-  Ok (parser, Ast.Macro { parameters; body })
+  Ok (parser, Ast.Macro { parameters; body }) *)
 
 and parse_list_of_parameters parser parameters =
   match parser.peek with

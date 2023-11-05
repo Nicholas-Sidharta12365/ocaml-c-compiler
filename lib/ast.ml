@@ -36,10 +36,6 @@ and expression =
       ; index : expression
       }
   | Hash of (expression * expression) list
-  | Macro of
-      { parameters : identifier list
-      ; body : block
-      }
 [@@deriving show { with_path = false }, sexp]
 
 and statement =

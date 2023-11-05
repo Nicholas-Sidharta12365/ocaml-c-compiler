@@ -1,12 +1,17 @@
 open Base
 
+(* let ( let* ) o f = *)
+(*   match o with *)
+(*   | None -> None *)
+(*   | Some x -> f x *)
+(* ;; *)
+
 type t =
   { input : string
   ; position : int
   ; ch : char option
   }
 [@@deriving show]
-
 let init input =
   if String.is_empty input
   then { input; position = 0; ch = None }
@@ -53,14 +58,24 @@ and advance lexer =
     { lexer with position; ch = Some (String.get lexer.input position) })
 
 and peek_char lexer =
-  if lexer.position >= String.length lexer.input - 1
-  then None
-  else Some (String.get lexer.input (lexer.position + 1))
+  match lexer.position + 1 < String.length lexer.input with
+  | true -> Some (String.get lexer.input (lexer.position + 1))
+  | false -> None
+
+(* and peek_char lexer = *)
+(*   Option.some (lexer.position + 1) *)
+(*   |> Option.bind ~f:(fun pos -> *)
+(*        if pos >= String.length lexer.input then None *)
+(*        else Some (String.get lexer.input pos)) *)
 
 and seek lexer condition =
-  let rec loop lexer = if condition lexer.ch then loop @@ advance lexer else lexer in
-  let lexer = loop lexer in
-  lexer, lexer.position
+  let rec loop lexer =
+    match condition lexer.ch with
+    | true -> loop (advance lexer)
+    | false -> lexer, lexer.position
+  in
+  let lexer, position = loop lexer in
+  lexer, position
 
 and read_while lexer condition =
   let pos_start = lexer.position in
@@ -107,19 +122,12 @@ and is_identifier ch = Char.(ch = '_' || is_alpha ch)
 and is_number ch = Char.is_digit ch
 
 let input_to_tokens input =
-  let lexer = init input in
-  let tokens = Vect.create 0 Token.Illegal in
-  let rec loop lexer =
+  let rec loop lexer acc =
     match next_token lexer with
-    | lexer, Some token ->
-      Vect.push tokens token;
-      loop lexer
-    | _, None -> ()
+    | new_lexer, Some token -> loop new_lexer (token :: acc)
+    | _, None -> List.rev acc
   in
-  let _ = loop lexer in
-  Vect.to_list tokens
+  loop (init input) []
 ;;
 
-let print_tokens tokens = 
-  List.iter ~f:(fun t -> Fmt.pr "%s\n " @@ Token.show t) tokens
-;;
+let print_tokens tokens = List.iter ~f:(fun t -> Fmt.pr "%s\n " @@ Token.show t) tokens
