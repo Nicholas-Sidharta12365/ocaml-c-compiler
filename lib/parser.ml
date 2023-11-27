@@ -33,6 +33,7 @@ type t =
   { lexer : Lexer.t
   ; current : Token.t option
   ; peek : Token.t option
+  ; double_peek : Token.t option
   }
 [@@deriving show]
 
@@ -47,7 +48,9 @@ let err parser msg statements = Error { parser; msg; statements }
 
 let advance parser =
   let lexer, peek = Lexer.next_token parser.lexer in
-  { lexer; peek; current = parser.peek }
+(* let double_peek = Lexer. *)
+  (* { lexer; peek; current = parser.peek; double_peek = parser.peek } *)
+  { lexer; peek = parser.double_peek; current = parser.peek; double_peek = peek }
 ;;
 
 let advance_until parser f =
@@ -79,6 +82,10 @@ let expect_peek parser condition =
 ;;
 
 let peek_is parser token = Option.equal Token.equal parser.peek (Some token)
+
+let double_peek_is parser token = Option.equal Token.equal parser.double_peek (Some token)
+
+(* let ( let* ) res f = Base.Result.bind res ~f *)
 
 let expect_assign parser =
   expect_peek parser (function
@@ -141,9 +148,14 @@ let curr_precedence parser =
 ;;
 
 let init lexer =
-  let parser = { lexer; current = None; peek = None } in
+  let parser = { lexer; current = None; peek = None; double_peek = None } in
+  Fmt.pr "init: %a\n\n" pp parser;
   let parser = advance parser in
+  Fmt.pr "init: %a\n\n" pp parser;
   let parser = advance parser in
+  Fmt.pr "init: %a\n\n" pp parser;
+  let parser = advance parser in
+  Fmt.pr "init: %a\n\n" pp parser;
   parser
 ;;
 
@@ -161,27 +173,37 @@ let rec parse parser =
 
 and parse_statement parser =
   match parser.current with
-  | Some Token.Int -> parse_int parser
+  | Some (Token.Int as tok) | Some (Token.Void as tok) when not @@ double_peek_is parser Token.LeftParen -> parse_declaration parser tok
   | Some Token.Return -> parse_return parser
   | Some _ -> parse_expression_statement parser
   | None -> Error "no more tokens"
 
-and parse_int parser =
-  let* parser, name = parse_identifier parser in
+and parse_declaration parser tok =
+  Fmt.pr "\n";
+  Fmt.pr "current %s\n" (Token.show tok);
+  Fmt.pr "peek %s\n" (Token.show @@ Option.value_exn parser.peek);
+  Fmt.pr "double_peek %s\n" (Token.show @@ Option.value_exn parser.double_peek);
 
+  let* parser, name = parse_identifier parser in
+  let* parser, type_def =
+    match tok with
+    | Token.Int -> Ok (parser, Ast.IntType)
+    | Token.Void -> Ok (parser, Ast.VoidType)
+    | _ -> Error "unexpected token"
+  in
   (* match expect_semicolon parser with *)
   match parser.peek with
   | Some Token.Semicolon ->
     let parser = advance parser in
     (* let value = None  in *)
-    Ok (parser, Ast.Int { name; value = None })
+    Ok (parser, Ast.Declaration { name; type_def; value = None })
   | Some Token.Assign ->
     let* parser = expect_assign parser in
     (* move parser onto the beginning of the expression *)
     let parser = advance parser in
     let* parser, value = parse_expression parser `Lowest in
     let parser = chomp_semicolon parser in
-    Ok (parser, Ast.Int { name; value = Some ( value ) })
+    Ok (parser, Ast.Declaration { name; type_def; value = Some value })
   | Some tok -> Error (Fmt.failwith "unexpected token %a" Token.pp tok)
   | _ -> Error (Fmt.failwith "missing peeked: %a" pp parser)
 
@@ -243,6 +265,7 @@ and parse_prefix_expression parser =
   | Token.Minus -> expr_parse_prefix parser token
   | Token.LeftParen -> expr_parse_grouped parser
   | Token.If -> expr_parse_if parser
+  | Token.Void when double_peek_is parser Token.LeftParen -> expr_parse_fn parser
   | Token.LeftBracket -> expr_parse_array_literal parser
   | Token.LeftBrace -> expr_parse_hash_literal parser
   | tok -> Error (Fmt.str "unexpected prefix expr: %a\n %a" Token.pp tok pp parser)
@@ -379,6 +402,7 @@ and read_identifier parser =
   | _ -> Error "expected to read identifier"
 
 and expr_parse_fn parser =
+  Fmt.pr "%s\n" "YAYAYAYAY";
   let* parser = expect_lparen parser in
   let* parser, parameters =
     match parser.peek with
@@ -421,14 +445,14 @@ and parse_list_of_parameters parser parameters =
 ;;
 
 let string_of_statement = function
-  | Ast.Int stmt ->
+  | Ast.Declaration stmt ->
     Fmt.str
-      "INT: int %s = %s"
+      "DECLARATION: %s %s = %s"
+      (Ast.show_type_def stmt.type_def)
       (Ast.show_identifier stmt.name)
       (match stmt.value with
-        None -> "Uninitialized"
-      | Some value -> show_expression value
-      )
+       | None -> "Uninitialized"
+       | Some value -> show_expression value)
   | Return expr -> Fmt.str "RETURN %s" (show_expression expr)
   | ExpressionStatement expr -> Fmt.str "EXPR: %s;" (show_expression expr)
   | BlockStatement _ -> assert false
@@ -455,8 +479,22 @@ module Tests = struct
 
   let%expect_test "series of let statements" =
     expect_program {|
-int x = 5;
-int y;
+int x;
+int y = 1;
+    |};
+    [%expect
+      {|
+    Program: [
+      DECLARATION: IntType { identifier = "x" } = Uninitialized
+      DECLARATION: IntType { identifier = "y" } = (Integer 1)
+    ] |}]
+  ;;
+
+  let%expect_test "function literal" =
+    expect_program {|
+void bubbleSort(int n) {
+  int i;
+}
     |};
     [%expect
       {|

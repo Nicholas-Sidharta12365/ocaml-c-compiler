@@ -56,12 +56,6 @@ and peek_char lexer =
   | true -> Some (String.get lexer.input (lexer.position + 1))
   | false -> None
 
-(* and peek_char lexer = *)
-(*   Option.some (lexer.position + 1) *)
-(*   |> Option.bind ~f:(fun pos -> *)
-(*        if pos >= String.length lexer.input then None *)
-(*        else Some (String.get lexer.input pos)) *)
-
 and seek lexer condition =
   let rec loop lexer =
     match condition lexer.ch with

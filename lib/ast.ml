@@ -3,6 +3,11 @@ type node =
   | Expression of expression
   | Statement of statement
 
+and type_def =
+  | IntType
+  | VoidType
+[@@deriving show { with_path = false }, sexp]
+
 and expression =
   | Identifier of identifier
   | Integer of int
@@ -39,10 +44,15 @@ and expression =
 [@@deriving show { with_path = false }, sexp]
 
 and statement =
-  | Int of
+  | Declaration of
       { name : identifier
+      ; type_def : type_def
       ; value : expression option
       }
+  (* | Assignment of *)
+  (*     { name : identifier *)
+  (*     ; value : expression *)
+  (*     } *)
   | Return of expression
   | ExpressionStatement of expression
   | BlockStatement of block
