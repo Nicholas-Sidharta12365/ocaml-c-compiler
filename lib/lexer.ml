@@ -1,11 +1,5 @@
 open Base
 
-(* let ( let* ) o f = *)
-(*   match o with *)
-(*   | None -> None *)
-(*   | Some x -> f x *)
-(* ;; *)
-
 type t =
   { input : string
   ; position : int

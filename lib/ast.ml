@@ -39,9 +39,9 @@ and expression =
 [@@deriving show { with_path = false }, sexp]
 
 and statement =
-  | Let of
+  | Int of
       { name : identifier
-      ; value : expression
+      ; value : expression option
       }
   | Return of expression
   | ExpressionStatement of expression

@@ -92,6 +92,12 @@ let expect_colon parser =
     | _ -> false)
 ;;
 
+let expect_semicolon parser =
+  expect_peek parser (function
+    | Token.Semicolon -> true
+    | _ -> false)
+;;
+
 let expect_lparen parser =
   expect_peek parser (function
     | Token.LeftParen -> true
@@ -155,19 +161,29 @@ let rec parse parser =
 
 and parse_statement parser =
   match parser.current with
-  (* | Some Token.Let -> parse_let parser *)
+  | Some Token.Int -> parse_int parser
   | Some Token.Return -> parse_return parser
   | Some _ -> parse_expression_statement parser
   | None -> Error "no more tokens"
 
-and parse_let parser =
+and parse_int parser =
   let* parser, name = parse_identifier parser in
-  let* parser = expect_assign parser in
-  (* move parser onto the beginning of the expression *)
-  let parser = advance parser in
-  let* parser, value = parse_expression parser `Lowest in
-  let parser = chomp_semicolon parser in
-  Ok (parser, Ast.Let { name; value })
+
+  (* match expect_semicolon parser with *)
+  match parser.peek with
+  | Some Token.Semicolon ->
+    let parser = advance parser in
+    (* let value = None  in *)
+    Ok (parser, Ast.Int { name; value = None })
+  | Some Token.Assign ->
+    let* parser = expect_assign parser in
+    (* move parser onto the beginning of the expression *)
+    let parser = advance parser in
+    let* parser, value = parse_expression parser `Lowest in
+    let parser = chomp_semicolon parser in
+    Ok (parser, Ast.Int { name; value = Some ( value ) })
+  | Some tok -> Error (Fmt.failwith "unexpected token %a" Token.pp tok)
+  | _ -> Error (Fmt.failwith "missing peeked: %a" pp parser)
 
 and parse_return parser =
   (* Move parser onto expression *)
@@ -405,11 +421,14 @@ and parse_list_of_parameters parser parameters =
 ;;
 
 let string_of_statement = function
-  | Ast.Let stmt ->
+  | Ast.Int stmt ->
     Fmt.str
-      "LET: let %s = %s"
+      "INT: int %s = %s"
       (Ast.show_identifier stmt.name)
-      (show_expression stmt.value)
+      (match stmt.value with
+        None -> "Uninitialized"
+      | Some value -> show_expression value
+      )
   | Return expr -> Fmt.str "RETURN %s" (show_expression expr)
   | ExpressionStatement expr -> Fmt.str "EXPR: %s;" (show_expression expr)
   | BlockStatement _ -> assert false
@@ -423,3 +442,27 @@ let print_node = function
     Fmt.pr "]@."
   | _ -> failwith "yaya"
 ;;
+
+module Tests = struct
+  let expect_program input =
+    let lexer = Lexer.init input in
+    let parser = init lexer in
+    let program = parse parser in
+    match program with
+    | Ok program -> print_node program
+    | Error msg -> Fmt.failwith "%a@." pp_parse_error msg
+  ;;
+
+  let%expect_test "series of let statements" =
+    expect_program {|
+int x = 5;
+int y;
+    |};
+    [%expect
+      {|
+    Program: [
+      INT: int { identifier = "x" } = (Integer 5)
+      INT: int { identifier = "y" } = Uninitialized
+    ] |}]
+  ;;
+end
