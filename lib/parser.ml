@@ -48,7 +48,6 @@ let err parser msg statements = Error { parser; msg; statements }
 
 let advance parser =
   let lexer, peek = Lexer.next_token parser.lexer in
-(* let double_peek = Lexer. *)
   (* { lexer; peek; current = parser.peek; double_peek = parser.peek } *)
   { lexer; peek = parser.double_peek; current = parser.peek; double_peek = peek }
 ;;
@@ -149,13 +148,9 @@ let curr_precedence parser =
 
 let init lexer =
   let parser = { lexer; current = None; peek = None; double_peek = None } in
-  Fmt.pr "init: %a\n\n" pp parser;
   let parser = advance parser in
-  Fmt.pr "init: %a\n\n" pp parser;
   let parser = advance parser in
-  Fmt.pr "init: %a\n\n" pp parser;
   let parser = advance parser in
-  Fmt.pr "init: %a\n\n" pp parser;
   parser
 ;;
 
@@ -173,16 +168,42 @@ let rec parse parser =
 
 and parse_statement parser =
   match parser.current with
-  | Some (Token.Int as tok) | Some (Token.Void as tok) when not @@ double_peek_is parser Token.LeftParen -> parse_declaration parser tok
+
+  | Some (Token.Int as tok) | Some (Token.Void as tok) when double_peek_is parser Token.LeftParen -> parse_fn parser tok
+  | Some (Token.Int as tok) | Some (Token.Void as tok) -> parse_declaration parser tok
+  (* | Token.Void when double_peek_is parser Token.LeftParen -> expr_parse_fn parser *)
   | Some Token.Return -> parse_return parser
   | Some _ -> parse_expression_statement parser
   | None -> Error "no more tokens"
 
+and parse_fn parser tok =
+  let* parser, type_def =
+    match tok with
+    | Token.Int -> Ok (parser, Ast.IntType)
+    | Token.Void -> Ok (parser, Ast.VoidType)
+    | _ -> Error "unexpected token"
+  in
+
+  let* parser, name = parse_identifier parser in
+  let* parser = expect_lparen parser in
+  let* parser, parameters =
+    match parser.peek with
+    | Some Token.RightParen -> parse_list_of_parameters parser []
+    | Some (Token.Ident _) ->
+      let parser = advance parser in
+      let* identifier = read_identifier parser in
+      parse_list_of_parameters parser [ identifier ]
+    | _ -> Error "unexpected start of parameter list"
+  in
+  let* parser = expect_lbrace parser in
+  let* parser, body = parse_block parser in
+  Ok (parser, Ast.FunctionDeclaration { type_def; name; parameters; body })
+
 and parse_declaration parser tok =
-  Fmt.pr "\n";
-  Fmt.pr "current %s\n" (Token.show tok);
-  Fmt.pr "peek %s\n" (Token.show @@ Option.value_exn parser.peek);
-  Fmt.pr "double_peek %s\n" (Token.show @@ Option.value_exn parser.double_peek);
+  (* Fmt.pr "\n"; *)
+  (* Fmt.pr "current %s\n" (Token.show tok); *)
+  (* Fmt.pr "peek %s\n" (Token.show @@ Option.value_exn parser.peek); *)
+  (* Fmt.pr "double_peek %s\n" (Token.show @@ Option.value_exn parser.double_peek); *)
 
   let* parser, name = parse_identifier parser in
   let* parser, type_def =
@@ -265,7 +286,7 @@ and parse_prefix_expression parser =
   | Token.Minus -> expr_parse_prefix parser token
   | Token.LeftParen -> expr_parse_grouped parser
   | Token.If -> expr_parse_if parser
-  | Token.Void when double_peek_is parser Token.LeftParen -> expr_parse_fn parser
+  (* | Token.Void when double_peek_is parser Token.LeftParen -> expr_parse_fn parser *)
   | Token.LeftBracket -> expr_parse_array_literal parser
   | Token.LeftBrace -> expr_parse_hash_literal parser
   | tok -> Error (Fmt.str "unexpected prefix expr: %a\n %a" Token.pp tok pp parser)
@@ -402,7 +423,6 @@ and read_identifier parser =
   | _ -> Error "expected to read identifier"
 
 and expr_parse_fn parser =
-  Fmt.pr "%s\n" "YAYAYAYAY";
   let* parser = expect_lparen parser in
   let* parser, parameters =
     match parser.peek with
@@ -444,7 +464,7 @@ and parse_list_of_parameters parser parameters =
   | None -> Error "unexpected end of stream"
 ;;
 
-let string_of_statement = function
+let rec string_of_statement = function
   | Ast.Declaration stmt ->
     Fmt.str
       "DECLARATION: %s %s = %s"
@@ -453,6 +473,13 @@ let string_of_statement = function
       (match stmt.value with
        | None -> "Uninitialized"
        | Some value -> show_expression value)
+  | Ast.FunctionDeclaration stmt ->
+    Fmt.str
+      "FUNCTION: %s %s(%s) { %s }"
+      (Ast.show_type_def stmt.type_def)
+      (Ast.show_identifier stmt.name)
+      (String.concat ~sep:", " (List.map stmt.parameters ~f:Ast.show_identifier))
+      (String.concat ~sep:"; " (List.map stmt.body.block ~f:string_of_statement))
   | Return expr -> Fmt.str "RETURN %s" (show_expression expr)
   | ExpressionStatement expr -> Fmt.str "EXPR: %s;" (show_expression expr)
   | BlockStatement _ -> assert false

@@ -45,14 +45,21 @@ and expression =
 
 and statement =
   | Declaration of
-      { name : identifier
-      ; type_def : type_def
+      { type_def : type_def
+      ; name : identifier
       ; value : expression option
       }
   (* | Assignment of *)
   (*     { name : identifier *)
   (*     ; value : expression *)
   (*     } *)
+
+  | FunctionDeclaration of
+      { type_def : type_def
+      ; name : identifier
+      ; parameters : identifier list
+      ; body : block
+      }
   | Return of expression
   | ExpressionStatement of expression
   | BlockStatement of block
