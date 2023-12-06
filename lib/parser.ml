@@ -289,6 +289,7 @@ and parse_prefix_expression parser =
   (* | Token.Void when double_peek_is parser Token.LeftParen -> expr_parse_fn parser *)
   | Token.LeftBracket -> expr_parse_array_literal parser
   | Token.LeftBrace -> expr_parse_hash_literal parser
+  | Token.Printf -> expr_parse_printf parser
   | tok -> Error (Fmt.str "unexpected prefix expr: %a\n %a" Token.pp tok pp parser)
 
 and parse_infix_expression parser left =
@@ -301,6 +302,13 @@ and parse_infix_expression parser left =
 and parse_call_expression parser fn =
   parse_list_of_exprs parser ~close:Token.RightParen ~final:(fun args ->
     Ast.Call { fn; args })
+
+and expr_parse_printf parser =
+  let parser = advance parser in
+  let fn = Ast.Identifier { identifier = "printf" } in
+  parse_list_of_exprs parser ~close:Token.RightParen ~final:(fun args ->
+  Ast.Call { fn; args })
+
 
 and parse_index_expression parser left =
   let parser = advance parser in
@@ -473,13 +481,15 @@ let rec string_of_statement = function
       (match stmt.value with
        | None -> "Uninitialized"
        | Some value -> show_expression value)
+    
   | Ast.FunctionDeclaration stmt ->
     Fmt.str
-      "FUNCTION: %s %s(%s) { %s }"
+      "FUNCTION: %s %s %sBODY = {\n  %s\n}"
       (Ast.show_type_def stmt.type_def)
       (Ast.show_identifier stmt.name)
       (String.concat ~sep:", " (List.map stmt.parameters ~f:Ast.show_identifier))
-      (String.concat ~sep:"; " (List.map stmt.body.block ~f:string_of_statement))
+      (String.concat ~sep:"\n  " (List.map stmt.body.block ~f:string_of_statement))
+    
   | Return expr -> Fmt.str "RETURN %s" (show_expression expr)
   | ExpressionStatement expr -> Fmt.str "EXPR: %s;" (show_expression expr)
   | BlockStatement _ -> assert false
@@ -519,15 +529,144 @@ int y = 1;
 
   let%expect_test "function literal" =
     expect_program {|
-void bubbleSort(int n) {
-  int i;
+int main() {
+  
 }
     |};
     [%expect
       {|
     Program: [
-      INT: int { identifier = "x" } = (Integer 5)
-      INT: int { identifier = "y" } = Uninitialized
+      FUNCTION: IntType { identifier = "main" } BODY = {
+
+    }
     ] |}]
   ;;
+
+
+  let%expect_test "function literal" =
+    expect_program {|
+int main() {
+  int x = 1;
+  int y = 2;
+}
+    |};
+    [%expect
+      {|
+    Program: [
+      FUNCTION: IntType { identifier = "main" } BODY = {
+      DECLARATION: IntType { identifier = "x" } = (Integer 1)
+      DECLARATION: IntType { identifier = "y" } = (Integer 2)
+    }
+    ] |}]
+  ;;
+
+  let%expect_test "function literal" =
+  expect_program {|
+int main() {
+int x = 1;
+int y = 2;
+
+return 0;
+}
+  |};
+  [%expect
+    {|
+  Program: [
+    FUNCTION: IntType { identifier = "main" } BODY = {
+    DECLARATION: IntType { identifier = "x" } = (Integer 1)
+    DECLARATION: IntType { identifier = "y" } = (Integer 2)
+    RETURN (Integer 0)
+  }
+  ] |}]
+;;
+
+let%expect_test "function literal" =
+expect_program {|
+int main() {
+int x = 1;
+int y = 2;
+
+(1+2);
+
+return 0;
+}
+|};
+[%expect
+  {|
+Program: [
+  FUNCTION: IntType { identifier = "main" } BODY = {
+  DECLARATION: IntType { identifier = "x" } = (Integer 1)
+  DECLARATION: IntType { identifier = "y" } = (Integer 2)
+  EXPR: Infix {left = (Integer 1); operator = Token.Plus; right = (Integer 2)};
+  RETURN (Integer 0)
+}
+] |}]
+;;
+
+let%expect_test "function literal" =
+expect_program {|
+int main() {
+int x = 1;
+int y = 2;
+
+(x+y);
+
+return 0;
+}
+|};
+[%expect
+  {|
+Program: [
+  FUNCTION: IntType { identifier = "main" } BODY = {
+  DECLARATION: IntType { identifier = "x" } = (Integer 1)
+  DECLARATION: IntType { identifier = "y" } = (Integer 2)
+  EXPR: Infix {left = (Identifier { identifier = "x" }); operator = Token.Plus;
+  right = (Identifier { identifier = "y" })};
+  RETURN (Integer 0)
+}
+] |}]
+;;
+
+let%expect_test "function literal" =
+expect_program {|
+printf("hello world");
+|};
+[%expect
+  {|
+Program: [
+  EXPR: Call {fn = (Identifier { identifier = "printf" });
+  args = [(String "hello world")]};
+] |}]
+;;
+
+let%expect_test "function literal" =
+expect_program {|
+int main() {
+  int x = 1;
+  int y = 2;
+
+  printf("(x + y) =%d\n", (x + y));
+
+  return 0;
+}
+
+|};
+[%expect
+  {|
+Program: [
+  FUNCTION: IntType { identifier = "main" } BODY = {
+  DECLARATION: IntType { identifier = "x" } = (Integer 1)
+  DECLARATION: IntType { identifier = "y" } = (Integer 2)
+  EXPR: Call {fn = (Identifier { identifier = "printf" });
+  args =
+  [(String "(x + y) =%d\\n");
+    Infix {left = (Identifier { identifier = "x" }); operator = Token.Plus;
+      right = (Identifier { identifier = "y" })}
+    ]};
+  RETURN (Integer 0)
+}
+]
+    
+|}]
+;;
 end
