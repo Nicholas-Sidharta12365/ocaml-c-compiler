@@ -657,7 +657,7 @@ Program: [
   FUNCTION: IntType { identifier = "main" } BODY = {
   DECLARATION: IntType { identifier = "x" } = (Integer 1)
   DECLARATION: IntType { identifier = "y" } = (Integer 2)
-  EXPR: Call {fn = (Identifier { identifier = "printf" });
+  EXPR: Call {fn = (Identifier { identifier = "printf" });a
   args =
   [(String "(x + y) =%d\\n");
     Infix {left = (Identifier { identifier = "x" }); operator = Token.Plus;
